@@ -68,23 +68,24 @@ namespace lmdb_dupbug
                     Directory.CreateDirectory(lmdbdir);
                 }
                 log.Info($"Initialize LMDB at {lmdbdir}");
-                var lmdb = new Lightning(lmdbdir, 1, 3145728); //3 megabytes more or less sufficient for 5 iterations
-
-                log.Info($"Endless cycle of insertion of {list.Count} keyvaluepairs over and over.");
-                while (true)
+                using (var lmdb = new Lightning(lmdbdir, 1, 3145728)) //3 megabytes more or less sufficient for 5 iterations
                 {
-                    foreach (var item in list)
+                    log.Info($"Endless cycle of insertion of {list.Count} keyvaluepairs over and over.");
+                    while (true)
                     {
-                        lmdb.Put("test", item.Key, item.Value, LightningDB.DatabaseOpenFlags.Create | LightningDB.DatabaseOpenFlags.IntegerKey, LightningDB.CursorPutOptions.NoOverwrite);
+                        foreach (var item in list)
+                        {
+                            lmdb.Put("test", item.Key, item.Value, LightningDB.DatabaseOpenFlags.Create | LightningDB.DatabaseOpenFlags.IntegerKey, LightningDB.CursorPutOptions.NoOverwrite);
+                        }
+
+                        log.Info($"Inserted {list.Count} records.");
+
+                        //data.mdb is growing, feel free to check how many times key is in the .mdb file.
+                        //I know this sample uses random strings, but in our case we used IPv6 as a key, which is an integer candidate.
+                        //Problem is that LMDB completely ignores NoOverwrite flag.
+                        //I tried to use put directly (not using cursor), it had a same effect.
+                        Task.Delay(1000).Wait();
                     }
-
-                    log.Info($"Inserted {list.Count} records.");
-
-                    //data.mdb is growing, feel free to check how many times key is in the .mdb file.
-                    //I know this sample uses random strings, but in our case we used IPv6 as a key, which is an integer candidate.
-                    //Problem is that LMDB completely ignores NoOverwrite flag.
-                    //I tried to use put directly (not using cursor), it had a same effect.
-                    Task.Delay(1000).Wait();
                 }
             }
             catch (Exception ex)
